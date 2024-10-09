@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>track_n_follow</name>
+  <name>detect_n_track</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="unifgescudeiro@fei.edu.br">guilherme</maintainer>
@@ -12,6 +12,7 @@
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
   <depend>std_msgs</depend>
   <depend>action_msgs</depend>
+  <depend>vision_msgs</depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(track_n_follow)
+project(detect_n_track)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -11,14 +11,8 @@ find_package(ament_cmake REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 find_package(std_msgs REQUIRED)
-find_package(rosidl_default_generators REQUIRED)
-rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/InferenceResult.msg"
-  "msg/Yolov8Inference.msg"
-  "msg/InferencePosition.msg"
-  DEPENDENCIES std_msgs
-)
-ament_export_dependencies(rosidl_default_runtime)
+find_package(vision_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 install(
   DIRECTORY
@@ -32,7 +26,6 @@ install(
 install(
   PROGRAMS
     src/detection_track.py
-    src/follow_server.py
     src/inference_position.py
     src/goal_updater.py
   DESTINATION lib/${PROJECT_NAME}

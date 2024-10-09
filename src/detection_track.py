@@ -6,8 +6,8 @@ import cv2 as cv
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+from vision_msgs.msg import Detection2DArray, Detection2D, ObjectHypothesisWithPose
 
-from track_n_follow.msg import Yolov8Inference, InferenceResult
 bridge = CvBridge()
 
 class CameraSubscriber(Node):
@@ -17,7 +17,7 @@ class CameraSubscriber(Node):
 
         self.model = YOLO('yolov8n.pt')
 
-        self.yolov8_inference = Yolov8Inference()
+        self.detection_array = Detection2DArray()
 
         self._subscriber_color_camera_raw = self.create_subscription(
             Image,
@@ -26,38 +26,46 @@ class CameraSubscriber(Node):
             10)
         self._subscriber_color_camera_raw # avoid unused variable warning
 
-        self.yolov8_pub = self.create_publisher(Yolov8Inference, "/Yolov8_Inference", 1)
-        self.img_pub = self.create_publisher(Image, "/inference_result", 1)
+        self.detection_array_pub = self.create_publisher(Detection2DArray, "/detection_array", 1)
+        self.img_pub = self.create_publisher(Image, "/detector_image", 1)
 
     def camera_callback(self, data):
 
         img = bridge.imgmsg_to_cv2(data, "bgr8")
         results = self.model.track(img, persist=True)
 
-        self.yolov8_inference.header.frame_id = "inference"
-        self.yolov8_inference.header.stamp = self.get_clock().now().to_msg()
+        self.detection_array.header.frame_id = "Detections"
+        self.detection_array.header.stamp = self.get_clock().now().to_msg()
 
         for r in results:
             boxes = r.boxes
             for box in boxes:
-                inference_result = InferenceResult()
-                b = box.xyxy[0].to('cpu').detach().numpy().copy()
-                c = box.cls
-                id = box.id
-                cx, cy = int((int(b[0]) + int(b[2]))/2), int((int(b[1]) + int(b[3]))/2) 
-                inference_result.class_name = self.model.names[int(c)]
+                inference_result = Detection2D()
+                inference_result.header.frame_id = "Detection"
+                inference_result.header.stamp = self.get_clock().now().to_msg()
+
+                b = box.xywh[0].to('cpu').detach().numpy().copy()
+                class_id = box.cls
+                conf = box.conf
+                id = int(box.id[0].to('cpu').detach().numpy().copy())
+
+                prob_result = ObjectHypothesisWithPose()
+                prob_result.hypothesis.score = float(conf)
+
                 try:
-                    inference_result.id = int(id)
+                    prob_result.hypothesis.class_id = self.model.names[int(class_id)]
                 except TypeError as e:
                     print(e)
-                inference_result.x1 = int(b[0])
-                inference_result.y1 = int(b[1])
-                inference_result.x2 = int(b[2])
-                inference_result.y2 = int(b[3])
-                inference_result.cx = int(cx)
-                inference_result.cy = int(cy)
-                self.yolov8_inference.yolov8_inference.append(inference_result)
-                cv.circle(img, (cx, cy), 2, (0,0,255), 10)
+
+                inference_result.bbox.center.position.x = float(b[0])
+                inference_result.bbox.center.position.y = float(b[1])
+                inference_result.bbox.size_x = float(b[2])
+                inference_result.bbox.size_y = float(b[3])
+                inference_result.results.append(prob_result)
+                inference_result.id = str(id)
+
+                self.detection_array.detections.append(inference_result)
+                cv.circle(img, (int(b[0]), int(b[1])), 2, (0,0,255), 10)
                 
 
         annotated_frame = results[0].plot()
@@ -65,8 +73,8 @@ class CameraSubscriber(Node):
         img_msg = bridge.cv2_to_imgmsg(annotated_frame)
 
         self.img_pub.publish(img_msg)
-        self.yolov8_pub.publish(self.yolov8_inference)
-        self.yolov8_inference.yolov8_inference.clear()
+        self.detection_array_pub.publish(self.detection_array)
+        self.detection_array.detections.clear()
 
 if __name__ == '__main__':
     rclpy.init(args=None)
